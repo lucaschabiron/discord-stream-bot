@@ -1,0 +1,22 @@
+{
+  "name": "railway-discord-stream",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "dev:backend": "pnpm --filter backend dev",
+    "dev:bot": "pnpm --filter bot dev",
+    "dev": "concurrently -c green,magenta,cyan -n backend,bot,frontend \"pnpm -F backend dev\" \"pnpm -F bot dev\" \"pnpm -F frontend dev\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.19.0",
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}
