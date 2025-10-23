@@ -18,7 +18,9 @@ const client = new Client({
   partials: [Partials.Channel],
 });
 
-client.on("ready", () => console.log(`Bot logged in as ${client.user?.tag}`));
+client.on("clientReady", () =>
+  console.log(`Bot logged in as ${client.user?.tag}`)
+);
 
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
@@ -28,6 +30,9 @@ client.on("messageCreate", async (msg) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         author: msg.author.username,
+        avatarUrl: msg.author.displayAvatarURL
+          ? msg.author.displayAvatarURL({ size: 128 })
+          : undefined,
         content: msg.content,
         channelId: msg.channelId,
         createdAt: msg.createdAt.toISOString(),

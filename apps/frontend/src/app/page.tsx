@@ -1,8 +1,10 @@
 "use client";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 type Msg = {
   author: string;
+  avatarUrl?: string;
   content: string;
   createdAt: string;
   channelId: string;
@@ -48,13 +50,32 @@ export default function Page() {
                 key={i}
                 className="bg-surface border border-border rounded-xl p-4 hover:border-accent/40 transition"
               >
-                <div className="flex justify-between mb-1">
-                  <span className="font-semibold">{m.author}</span>
-                  <span className="text-sm text-text-secondary">
-                    {new Date(m.createdAt).toLocaleTimeString()}
-                  </span>
+                <div className="flex gap-4">
+                  <div className="flex-shrink-0">
+                    {m.avatarUrl ? (
+                      <Image
+                        src={m.avatarUrl}
+                        alt={`${m.author} avatar`}
+                        className="w-10 h-10 rounded-full object-cover"
+                        width={40}
+                        height={40}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-sm text-white">
+                        {m.author.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-semibold">{m.author}</span>
+                      <span className="text-sm text-text-secondary">
+                        {new Date(m.createdAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <p>{m.content}</p>
+                  </div>
                 </div>
-                <p>{m.content}</p>
               </div>
             ))}
           </div>
