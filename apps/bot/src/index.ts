@@ -24,6 +24,10 @@ client.on("clientReady", () =>
 
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
+  const channelName =
+    msg.channel?.isTextBased() && "name" in (msg.channel as any)
+      ? ((msg.channel as any).name as string | undefined) ?? undefined
+      : undefined;
   try {
     await fetch(`${BACKEND_URL}/message`, {
       method: "POST",
@@ -35,6 +39,7 @@ client.on("messageCreate", async (msg) => {
           : undefined,
         content: msg.content,
         channelId: msg.channelId,
+        channelName,
         createdAt: msg.createdAt.toISOString(),
       }),
     });
