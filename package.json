@@ -7,8 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev:frontend": "pnpm --filter frontend dev",
     "dev:backend": "pnpm --filter backend dev",
-    "dev:bot": "pnpm --filter bot dev",
-    "dev": "concurrently -c green,magenta,cyan -n backend,bot,frontend \"pnpm -F backend dev\" \"pnpm -F bot dev\" \"pnpm -F frontend dev\""
+    "dev": "concurrently -c green,cyan -n backend,frontend \"pnpm -F backend dev\" \"pnpm -F frontend dev\""
   },
   "keywords": [],
   "author": "",

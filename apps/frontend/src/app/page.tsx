@@ -5,63 +5,88 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 const BACKEND_BASE_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
 
-type Channel = {
+type ThreadSummary = {
   id: string;
   name: string;
   lastMessageAt: string | null;
-  messageCount: number;
+  parentId?: string | null;
+  parentName?: string | null;
+  ownerName?: string | null;
+  ownerId?: string | null;
+  lastMessageFromAgent: boolean;
+  pendingCustomerMessages: number;
+  lastAgentMessageAt?: string | null;
 };
 
-type Msg = {
+type ThreadMessage = {
   id: number;
   author: string;
+  authorId?: string | null;
   avatarUrl?: string | null;
   content: string;
   createdAt: string;
-  channelId: string;
-  channelName?: string | null;
+  threadId: string;
+  threadName?: string | null;
+  threadParentId?: string | null;
+  threadParentName?: string | null;
+  isSupportAgent: boolean;
 };
 
 export default function Page() {
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(
-    null
-  );
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const [threads, setThreads] = useState<ThreadSummary[]>([]);
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ThreadMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [isNavOpen, setIsNavOpen] = useState(false);
 
+  const sortThreads = useCallback((list: ThreadSummary[]) => {
+    return [...list].sort((a, b) => {
+      if (a.lastMessageFromAgent !== b.lastMessageFromAgent) {
+        return a.lastMessageFromAgent ? 1 : -1;
+      }
+      const aTime = a.lastMessageAt ? Date.parse(a.lastMessageAt) : 0;
+      const bTime = b.lastMessageAt ? Date.parse(b.lastMessageAt) : 0;
+      return bTime - aTime;
+    });
+  }, []);
+
   useEffect(() => {
     let ignore = false;
 
-    const fetchChannels = async () => {
+    const fetchThreads = async () => {
       try {
-        const res = await fetch(`${BACKEND_BASE_URL}/channels`);
+        const res = await fetch(`${BACKEND_BASE_URL}/threads`);
         if (!res.ok) {
-          throw new Error(`Failed to load channels (status ${res.status})`);
+          throw new Error(`Failed to load threads (status ${res.status})`);
         }
-        const data = (await res.json()) as Channel[];
+        const data = (await res.json()) as ThreadSummary[];
         if (ignore) return;
-        setChannels(data);
-        setSelectedChannelId((prev) => prev ?? data[0]?.id ?? null);
+        const sorted = sortThreads(data);
+        setThreads(sorted);
+        setSelectedThreadId((prev) => {
+          if (prev && sorted.some((thread) => thread.id === prev)) {
+            return prev;
+          }
+          return sorted[0]?.id ?? null;
+        });
       } catch (error) {
         if (ignore) return;
-        console.error("Failed to load channels", error);
+        console.error("Failed to load threads", error);
       }
     };
 
-    fetchChannels();
-    const interval = setInterval(fetchChannels, 15000);
+    fetchThreads();
+    const interval = setInterval(fetchThreads, 15000);
 
     return () => {
       ignore = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [sortThreads]);
 
   useEffect(() => {
-    if (!selectedChannelId) {
+    if (!selectedThreadId) {
       setMessages([]);
       setMessagesError(null);
       setIsLoadingMessages(false);
@@ -77,14 +102,14 @@ export default function Page() {
           setIsLoadingMessages(true);
         }
         const res = await fetch(
-          `${BACKEND_BASE_URL}/channels/${encodeURIComponent(
-            selectedChannelId
+          `${BACKEND_BASE_URL}/threads/${encodeURIComponent(
+            selectedThreadId
           )}/messages?limit=50`
         );
         if (!res.ok) {
           throw new Error(`Failed to load messages (status ${res.status})`);
         }
-        const data = (await res.json()) as Msg[];
+        const data = (await res.json()) as ThreadMessage[];
         if (ignore) return;
         setMessages(data);
         setMessagesError(null);
@@ -107,15 +132,15 @@ export default function Page() {
       ignore = true;
       clearInterval(interval);
     };
-  }, [selectedChannelId]);
+  }, [selectedThreadId]);
 
-  const selectedChannel = useMemo(
-    () => channels.find((c) => c.id === selectedChannelId) ?? null,
-    [channels, selectedChannelId]
+  const selectedThread = useMemo(
+    () => threads.find((t) => t.id === selectedThreadId) ?? null,
+    [threads, selectedThreadId]
   );
 
-  const handleChannelSelect = useCallback((channelId: string) => {
-    setSelectedChannelId(channelId);
+  const handleThreadSelect = useCallback((threadId: string) => {
+    setSelectedThreadId(threadId);
     setIsNavOpen(false);
   }, []);
 
@@ -127,42 +152,58 @@ export default function Page() {
         }`}
       >
         <div className="p-6 border-b border-border">
-          <h2 className="text-xl font-semibold text-white">Channels</h2>
+          <h2 className="text-xl font-semibold text-white">Posts</h2>
           <p className="text-sm text-text-secondary mt-1">
-            Choose a channel to browse messages.
+            Browse the threads from your forum channel.
           </p>
         </div>
         <nav className="flex-1 overflow-y-auto">
-          {channels.length === 0 ? (
+          {threads.length === 0 ? (
             <p className="px-4 py-6 text-sm text-text-secondary">
-              Waiting for channel activity...
+              Waiting for thread activity...
             </p>
           ) : (
-            channels.map((channel) => {
-              const isActive = channel.id === selectedChannelId;
+            threads.map((thread) => {
+              const isActive = thread.id === selectedThreadId;
+              const isPending = !thread.lastMessageFromAgent;
+              const pendingCount = thread.pendingCustomerMessages;
+              const displayName = thread.ownerName?.trim() || thread.name;
+              const showThreadTitle =
+                thread.name && thread.name !== displayName;
+              const badgeContent =
+                pendingCount > 99 ? "99+" : String(pendingCount);
               return (
                 <button
                   type="button"
-                  key={channel.id}
-                  onClick={() => handleChannelSelect(channel.id)}
+                  key={thread.id}
+                  onClick={() => handleThreadSelect(thread.id)}
                   className={`w-full text-left px-4 py-3 transition ${
                     isActive
                       ? "bg-surface border-l-2 border-accent text-white"
+                      : isPending
+                      ? "bg-surface/40 border-l-2 border-amber-400/80 text-white"
                       : "hover:bg-surface/50 text-text-secondary"
                   }`}
                 >
-                  <div className="flex justify-between items-center text-sm font-medium">
-                    <span className="truncate">#{channel.name}</span>
-                    {channel.messageCount > 0 && (
-                      <span className="text-xs text-text-secondary">
-                        {channel.messageCount}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-3 text-sm font-medium">
+                    <span className="truncate">{displayName}</span>
+                    <div className="flex items-center gap-2">
+                      {pendingCount > 0 && (
+                        <span className="inline-flex min-w-[1.5rem] justify-center rounded-full bg-amber-500/90 px-2 py-0.5 text-xs font-semibold text-black">
+                          {badgeContent}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  {channel.lastMessageAt && (
+                  {showThreadTitle && (
+                    <p className="text-xs text-text-secondary/90 mt-1 truncate">
+                      {thread.name}
+                    </p>
+                  )}
+                  {thread.lastMessageAt && (
                     <p className="text-xs text-text-secondary mt-1">
                       Last message{" "}
-                      {new Date(channel.lastMessageAt).toLocaleTimeString()}
+                      {new Date(thread.lastMessageAt).toLocaleTimeString()}
                     </p>
                   )}
                 </button>
@@ -196,14 +237,24 @@ export default function Page() {
             </button>
             <div>
               <h2 className="text-3xl font-bold text-white">
-                {selectedChannel
-                  ? `#${selectedChannel.name}`
+                {selectedThread
+                  ? selectedThread.ownerName ?? selectedThread.name
                   : "Discord message stream"}
               </h2>
               <p className="text-text-secondary mt-1">
-                {selectedChannel
-                  ? "Latest messages for this channel."
-                  : "Waiting for messages from the Discord bot."}
+                {selectedThread ? (
+                  <>
+                    {selectedThread.name}
+                    {!selectedThread.lastMessageFromAgent && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-amber-300">
+                        <span className="inline-block h-2 w-2 rounded-full bg-amber-300"></span>
+                        Awaiting support reply
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  "Waiting for messages from the Discord bot."
+                )}
               </p>
             </div>
           </div>
@@ -219,9 +270,9 @@ export default function Page() {
             <p className="text-text-secondary italic">Loading messages...</p>
           ) : messages.length === 0 ? (
             <p className="text-text-secondary italic">
-              {selectedChannelId
-                ? "No messages yet for this channel."
-                : "Select a channel to view messages."}
+              {selectedThreadId
+                ? "No messages yet for this post."
+                : "Select a post to view messages."}
             </p>
           ) : (
             <div className="space-y-3">
@@ -248,7 +299,14 @@ export default function Page() {
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-semibold">{m.author}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold">{m.author}</span>
+                          {m.isSupportAgent && (
+                            <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
+                              Support
+                            </span>
+                          )}
+                        </div>
                         <span className="text-sm text-text-secondary">
                           {new Date(m.createdAt).toLocaleTimeString()}
                         </span>

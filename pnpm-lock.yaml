@@ -23,21 +23,15 @@ importers:
       '@fastify/cors':
         specifier: ^11.1.0
         version: 11.1.0
-      dotenv:
-        specifier: ^17.2.3
-        version: 17.2.3
-      fastify:
-        specifier: ^5.6.1
-        version: 5.6.1
-
-  apps/bot:
-    dependencies:
       discord.js:
         specifier: ^14.23.2
         version: 14.23.2
       dotenv:
         specifier: ^17.2.3
         version: 17.2.3
+      fastify:
+        specifier: ^5.6.1
+        version: 5.6.1
     devDependencies:
       '@types/node':
         specifier: ^20.19.23
@@ -77,7 +71,7 @@ importers:
         specifier: ^4
         version: 4.1.15
       typescript:
-        specifier: ^5
+        specifier: ^5.9.3
         version: 5.9.3
 
 packages:
